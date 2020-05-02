@@ -69,6 +69,7 @@ class JwtAuth{
         }
 
         if(!empty($decoded) && is_object($decoded)&& isset($decoded->sub)){
+           //dd($decoded);
             $auth=true;
         }else{
             $auth=false;

@@ -27,3 +27,4 @@ Route::get('/', function () {
 
 Route::Post('Login','UserController@Login');
 Route::Post('Register','UserController@Register');
+Route::Post('user/update','UserController@update')->middleware('api.auth');

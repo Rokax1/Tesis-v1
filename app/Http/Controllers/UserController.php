@@ -8,41 +8,52 @@ use \App\User;
 class UserController extends Controller
 {
 
+/*  METODO CUANDO SE QUIERE PEDIR EL TOKEN DE AUTORIZACION EN ALGUN METODO 
+    public function __construct(){
+
+        $this->middleware('api.auth',['except'=>[
+            'index',
+            'show',
+            'getImage',
+            'getPostByCategory',
+            'getPostByUser'
+            ]]);
+    }*/
+
     public function Login(Request $request)
     {
         // dd($request);
         $jwtAuth = new \JwtAuth();
         //recibir el post
-        $json=$request->input('json',null);
+        $json = $request->input('json', null);
         $params = json_decode($json);
-        $params_array=json_decode($json,true);
-        //validar los datos 
-        $validate = \Validator::make($params_array,[
-            'email'     =>  'required|email',  //existe el ususario  ? unique
-            'password'  =>  'required'
+        $params_array = json_decode($json, true);
+        //validar los datos
+        $validate = \Validator::make($params_array, [
+            'email' => 'required|email', //existe el ususario  ? unique
+            'password' => 'required',
 
         ]);
 
-        if($validate->fails()){
-            $signup= array(
-                'status'=> 'error',
-                'code'=> 404,
-                'message'=> 'El usuario no se a podido logear',
-                'errors' => $validate->errors()
-           );
-        
-        }else{
+        if ($validate->fails()) {
+            $signup = array(
+                'status' => 'error',
+                'code' => 404,
+                'message' => 'El usuario no se a podido logear',
+                'errors' => $validate->errors(),
+            );
+
+        } else {
             //cifrar la contraseña
-            $pwd=hash('sha256',$params->password);
+            $pwd = hash('sha256', $params->password);
             //devolver token  o datos
-             $signup = $jwtAuth->signup($params->email,$pwd);
-            if(!empty($params->gettoken)){
-                $signup = $jwtAuth->signup($params->email,$pwd,true);
+            $signup = $jwtAuth->signup($params->email, $pwd);
+            if (!empty($params->gettoken)) {
+                $signup = $jwtAuth->signup($params->email, $pwd, true);
             }
         }
 
-        return response()->json($signup,200);
-       
+        return response()->json($signup, 200);
 
     }
 
@@ -106,6 +117,17 @@ class UserController extends Controller
 
             );
         }
+
+        return response()->json($data, $data['code']);
+    }
+
+    public function update(Request $request)
+    {
+        $data = array(
+            'code' => 400,
+            'status' => 'error',
+            'message' => 'El usuario al update',
+        );
 
         return response()->json($data, $data['code']);
     }
