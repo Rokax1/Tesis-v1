@@ -19,7 +19,7 @@ class JwtAuth{
       
         
         $user= User::where([
-            'email'=> $email,
+            'correo'=> $email,
             'password'=>$password
         ])->first();
      //comprobar si son correctas
@@ -31,9 +31,9 @@ class JwtAuth{
         if($signup){
          $token = array(
             'sub'       =>  $user->id,
-            'email'     =>  $user->email,
-            'name'      =>  $user->name,
-            'surname'   =>  $user->surname,
+            'email'     =>  $user->correo,
+            'name'      =>  $user->nombre,
+            'surname'   =>  $user->apellido,
             'iat'       => time(),
             'exp'       => time() + (7*24*60*60)
          );

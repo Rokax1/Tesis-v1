@@ -30,7 +30,7 @@ class UserController extends Controller
         $params_array = json_decode($json, true);
         //validar los datos
         $validate = \Validator::make($params_array, [
-            'email' => 'required|email', //existe el ususario  ? unique
+            'correo' => 'required|email', //existe el ususario  ? unique
             'password' => 'required',
 
         ]);
@@ -47,9 +47,9 @@ class UserController extends Controller
             //cifrar la contraseña
             $pwd = hash('sha256', $params->password);
             //devolver token  o datos
-            $signup = $jwtAuth->signup($params->email, $pwd);
+            $signup = $jwtAuth->signup($params->correo, $pwd);
             if (!empty($params->gettoken)) {
-                $signup = $jwtAuth->signup($params->email, $pwd, true);
+                $signup = $jwtAuth->signup($params->correo, $pwd, true);
             }
         }
 
@@ -72,9 +72,9 @@ class UserController extends Controller
             $params_array = array_map('trim', $params_array);
 
             $validate = \Validator::make($params_array, [
-                'name' => 'required|alpha',
-                'surname' => 'required|alpha',
-                'email' => 'required|email|unique:users', //existe el ususario  ? unique
+                'nombre' => 'required|alpha',
+                'apellido' => 'required|alpha',
+                'correo' => 'required|email|unique:users', //existe el ususario  ? unique
                 'password' => 'required',
 
             ]);
@@ -92,11 +92,11 @@ class UserController extends Controller
                 $pwd = hash('sha256', $params->password);
                 //Crear el usuario
                 $user = new User();
-                $user->name = $params_array['name'];
-                $user->surname = $params_array['surname'];
-                $user->email = $params_array['email'];
+                $user->nombre = $params_array['nombre'];
+                $user->apellido = $params_array['apellido'];
+                $user->correo = $params_array['correo'];
                 $user->password = $pwd;
-                $user->Estado = '';
+                $user->estado = '';
                 //$user->role = 'ROLE_USER';
                 //guardar usuario
                 $user->save();
