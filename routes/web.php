@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-
+//Route::Post('user/update','UserController@update')->middleware('api.auth');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -18,15 +18,22 @@ use Illuminate\Support\Facades\Route;
     Post : guardar datos o en el login principalmente 
     Put: Actualizar recursos o datos  
     Delete :Eliminar datos 
-
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
 
+// rutas de login y registro 
 Route::Post('Login','UserController@Login');
 Route::Post('Register','UserController@Register');
-Route::Post('user/update','UserController@update')->middleware('api.auth');
 
+//rutas para subir y ver archivos (PDF)
+Route::Post('Actividades/Archivo', 'ActividadesController@SubirArchivo');
+Route::get('Actividades/Archivo/{filename}', 'ActividadesController@getArchivo');
+
+//rutas resource para las rutas 
 Route::resource('Actividades', 'ActividadesController');
+Route::resource('Users', 'UserController');
+Route::resource('Areas', 'AreasController');
+
+//Rutas para mensajes 
+Route::get('Mensajes/{id}','MensajesControllers@Mensajes');
+Route::Post('Mensajes/crear','MensajesControllers@CrearMensaje');

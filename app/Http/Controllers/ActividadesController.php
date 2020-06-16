@@ -23,6 +23,7 @@ estados de las actividades
         $this->middleware('api.auth', ['except' => [
             'index',
             'show',
+            'getArchivo'
         ]]);
     }
     /**
@@ -30,10 +31,13 @@ estados de las actividades
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $actividades = Actividades::all()->Load('usuario', 'area');
+        $user = $this->ObtenerIdentidad($request);
 
+        $actividades = Actividades::all()->Load('usuario', 'area');
+                                 
+        
         return response()->json([
             'code' => '200',
             'status' => 'success',
@@ -60,19 +64,20 @@ estados de las actividades
      */
     public function store(Request $request)
     {
+
+        //dd($request);
         $json = $request->input('json', null);
         $params = json_decode($json);
         $params_array = json_decode($json, true);
-
+        //dd($json);
         if (!empty($params_array)) {
 
             $user = $this->ObtenerIdentidad($request);
 
             $validate = \Validator::make($params_array, [
                 'titulo' => 'required',
-                'archivo' => 'required',
                 'descripcion' => 'required',
-                'area_actividad' => 'required',
+                'fk_area_actividad' => 'required',
             ]);
 
             if ($validate->fails()) {
@@ -89,23 +94,24 @@ estados de las actividades
                 $actividad->titulo = $params->titulo;
                 $actividad->archivo = $params->archivo;
                 $actividad->descripcion = $params->descripcion;
-                $actividad->fk_area_actividad = $params->area_actividad;
+                $actividad->fk_area_actividad = $params->fk_area_actividad;
                 $actividad->fk_user_creador_actividad = $user->sub;
 
-                if (array_key_exists('user_encargado', $params_array)) {
+                if (!(array_key_exists('fk_user_encargado', $params_array))||$params->fk_user_encargado=="") {
 
-                    $actividad->fk_user_encargado = $params->user_encargado;
-                    $actividad->estado_actividad = 'enviada';
-                } else {
-                    //$actividad->fk_user_encargado = $params->user_encargado;
                     $actividad->estado_actividad = 'creada';
+                    
+                }else {
+                   
+                    $actividad->fk_user_encargado = $params->fk_user_encargado;
+                    $actividad->estado_actividad = 'enviada';
                 }
                 $actividad->save();
 
                 $data = [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => $actividad,
+                    'actividad' => $actividad,
                 ];
 
             }
@@ -269,6 +275,68 @@ estados de las actividades
 
         return response()->json($data, $data['code']);
     }
+
+    public function SubirArchivo(Request $request)
+    {
+        //recoger la imagen de la peticion
+        $archivo = $request->file('file0');
+
+        //validar imagen n
+        $validate = \Validator::make($request->all(), [
+            'file0' => 'required|file|mimes:pdf,doc,docx',
+        ]);
+        //guardar imagen
+
+        if (!$archivo || $validate->fails()) {
+
+            $data = array(
+                'code' => 404,
+                'status' => 'error',
+                'message' => 'error al subir el archivo',
+            );
+
+        } else {
+            $archivo_name = time() . $archivo->getClientOriginalName();
+
+            \Storage::disk('Actividades')->put($archivo_name, \File::get($archivo));
+
+            $data = array(
+                'code' => 200,
+                'status' => 'success',
+                'archivo' => $archivo_name,
+            );
+        }
+
+        // devolver datos
+        return response()->json($data, $data['code']);
+
+    }
+
+    public function getArchivo($filename){
+
+        $isset=\Storage::disk('Actividades')->exists($filename);
+        if($isset){
+        $file= \Storage::disk('Actividades')->get($filename);
+        return new Response($file,200);
+
+        }else{
+            $data = array(
+                'code'=> 404,
+                'status'=>'error',
+                'image'=> 'El arhivo no existe no existe',
+               
+             );
+
+        }
+      
+        return response()->json($data,$data['code']);
+
+
+    }
+
+
+
+
 
     private function ObtenerIdentidad($request)
     {

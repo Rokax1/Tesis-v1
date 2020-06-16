@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use \App\User;
+use App\Helpers\JwtAuth;
+
 
 class UserController extends Controller
 {
@@ -19,6 +21,17 @@ class UserController extends Controller
             'getPostByUser'
             ]]);
     }*/
+
+    public function __construct()
+    {
+
+        $this->middleware('api.auth', ['except' => [
+            'index',
+            'show',
+            'Login',
+            'Register'
+        ]]);
+    }
 
     public function Login(Request $request)
     {
@@ -36,7 +49,7 @@ class UserController extends Controller
         ]);
 
         if ($validate->fails()) {
-            $signup = array(
+            $data = array(
                 'status' => 'error',
                 'code' => 404,
                 'message' => 'El usuario no se a podido logear',
@@ -47,13 +60,13 @@ class UserController extends Controller
             //cifrar la contraseña
             $pwd = hash('sha256', $params->password);
             //devolver token  o datos
-            $signup = $jwtAuth->signup($params->correo, $pwd);
+            $data = $jwtAuth->signup($params->correo, $pwd);
             if (!empty($params->gettoken)) {
-                $signup = $jwtAuth->signup($params->correo, $pwd, true);
+                $data = $jwtAuth->signup($params->correo, $pwd, true);
             }
         }
 
-        return response()->json($signup, 200);
+        return response()->json($data, 200);
 
     }
 
@@ -130,5 +143,31 @@ class UserController extends Controller
         );
 
         return response()->json($data, $data['code']);
+    }
+
+    public function index(Request $request){
+
+        $jwtAuth = new JwtAuth();
+        $identidad=$jwtAuth->ObtenerIdentidadHelper($request);
+
+        if(! is_object($identidad)){
+            $user = User::all();
+
+        }else{
+           // dd($identidad);
+            $id[]=$identidad->sub;
+            $user = User::whereNotIn('id',$id)->get(); 
+        }
+
+        $data = array(
+            'code' => 200,
+            'status' => 'success',
+            'users' => $user,
+        );
+        
+
+        return response()->json($data,$data['code']);
+
+
     }
 }
