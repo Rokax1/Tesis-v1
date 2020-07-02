@@ -17,17 +17,27 @@ class Actividades  extends Model
      * @var array
      */
     protected $fillable = [
-        'titulo','archivo','estado_actividad','descripcion', 'estado_confirmacion_creador', 'fk_area_actividad','fk_user_encargado'
+        'titulo','archivo','estado_actividad','descripcion','user_creador', 'fk_area_actividad',
     ];
 
-
-    public function usuario (){
-        return $this->belongsTo('App\User','fk_user_encargado');
+    public function userEncargado()
+    {
+        return $this->belongsToMany('App\User','actividaddetalle','id_actividad','id_usuario');
+       // ->withPivot('estado_actividad_creador', 'estado_actividad_encargado');
     }
+    
+    public function usuario (){
+        return $this->belongsTo('App\User','user_creador');
+    }
+
+
 
     public function area(){
         return $this->belongsTo('App\Modelos\AreaActividad','fk_area_actividad');
     }
+
+   
+    
 
 }
 

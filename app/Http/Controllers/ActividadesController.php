@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Helpers\JwtAuth;
 use App\Modelos\Actividades;
+use App\User;
+use App\Modelos\ActividadDetalle;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -35,13 +37,16 @@ estados de las actividades
     {
         $user = $this->ObtenerIdentidad($request);
 
-        $actividades = Actividades::all()->Load('usuario', 'area');
-                                 
-        
+        $actividad= User::find($user->sub)->ActividadesCreadas;
+        //dd($actividad);
+        $actividad->load('area','userEncargado');
+
+
+
         return response()->json([
             'code' => '200',
             'status' => 'success',
-            'actividades' => $actividades,
+            'actividades' => $actividad,
         ], 200);
 
     }
@@ -89,29 +94,27 @@ estados de las actividades
                 ];
             } else {
 
-                $actividad = new Actividades();
-
-                $actividad->titulo = $params->titulo;
-                $actividad->archivo = $params->archivo;
-                $actividad->descripcion = $params->descripcion;
-                $actividad->fk_area_actividad = $params->fk_area_actividad;
-                $actividad->fk_user_creador_actividad = $user->sub;
-
+                
                 if (!(array_key_exists('fk_user_encargado', $params_array))||$params->fk_user_encargado=="") {
+                    
+                   
+                   $actividadDevuelta= $this->agregarActividad($params,'creada',$user->sub);
 
-                    $actividad->estado_actividad = 'creada';
+                   $this->crearDetalleActividad($actividadDevuelta->id_actividad,null);
                     
                 }else {
+                    
+                    $actividadDevuelta = $this->agregarActividad($params,'enviada',$user->sub);
+
+                    $this->crearDetalleActividad($actividadDevuelta->id_actividad,$params->fk_user_encargado);
                    
-                    $actividad->fk_user_encargado = $params->fk_user_encargado;
-                    $actividad->estado_actividad = 'enviada';
                 }
-                $actividad->save();
+            
 
                 $data = [
                     'code' => 200,
                     'status' => 'success',
-                    'actividad' => $actividad,
+                    'actividad' => $actividadDevuelta,
                 ];
 
             }
@@ -144,7 +147,7 @@ estados de las actividades
             $data = [
                 'code' => 200,
                 'status' => 'success',
-                'actividad' => $actividades->Load('usuario', 'area'),
+                'actividad' => $actividades->Load('userEncargado', 'area'),
             ];
         } else {
 
@@ -196,7 +199,7 @@ estados de las actividades
                 'archivo' => 'required',
                 'descripcion' => 'required',
                 'fk_area_actividad' => 'required',
-                'fk_user_encargado' => 'required',
+                'user_encargado' => 'required',
             ]);
             if ($validate->fails()) {
                 $data['errors'] = $validate->errors();
@@ -208,7 +211,7 @@ estados de las actividades
             unset($params_array['estado_confirmacion_creador']);
 
             $actividad = Actividades::where('id_actividad', $id)
-                ->where('fk_user_creador_actividad', $user->sub)
+                ->where('user_creador', $user->sub)
                 ->first();
 
             if (!empty($actividad) && is_object($actividad)) {
@@ -250,6 +253,10 @@ estados de las actividades
         $user = $this->ObtenerIdentidad($request);
 
         //conseguir  el registro
+
+        $detalle = ActividadDetalle::where('id_actividad',$id)
+            ->where('id_usuario',null)
+            ->first();
         $actividad = Actividades::where('id_actividad', $id)
             ->where('fk_user_creador_actividad', $user->sub)
             ->first();
@@ -336,6 +343,31 @@ estados de las actividades
 
 
 
+    private function agregarActividad ($params,$estado,$user){
+
+        $actividad = new Actividades();
+        $actividad->titulo = $params->titulo;
+        $actividad->archivo = $params->archivo;
+        $actividad->descripcion = $params->descripcion;
+        $actividad->fk_area_actividad = $params->fk_area_actividad;
+        $actividad->user_creador = $user;
+        $actividad->estado_actividad = $estado;
+        $actividad->save();
+
+        //dd($actividad);
+        return $actividad;
+    }
+
+ public function crearDetalleActividad($id_actividad_devuelta,$fk_user_encargado=null){
+
+    $ActividadDetalle = new ActividadDetalle();
+
+    $ActividadDetalle->id_actividad= $id_actividad_devuelta;
+    $ActividadDetalle->id_usuario=$fk_user_encargado;
+    //$params->fk_user_encargado;
+    $ActividadDetalle->save();
+
+ }
 
 
     private function ObtenerIdentidad($request)
