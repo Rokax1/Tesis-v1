@@ -37,3 +37,13 @@ Route::resource('Areas', 'AreasController');
 //Rutas para mensajes 
 Route::get('Mensajes/{id}','MensajesControllers@Mensajes');
 Route::Post('Mensajes/crear','MensajesControllers@CrearMensaje');
+
+
+//rutas con funciones especificas
+
+Route::get('Users/Encargados/{id}', 'UserController@UsuariosConActividad');
+Route::get('User/GetUser/{id}', 'UserController@getUser');
+Route::Post('Actividades/AddUserActivity', 'ActividadesController@AddUserActivity');
+
+Route::get('Actividades/ActividadesEncargados/{id}', 'ActividadesController@getActividadesUserEncargado');
+Route::Post('Actividades/DeleteUserActivity', 'ActividadesController@DeleteUserActivity');

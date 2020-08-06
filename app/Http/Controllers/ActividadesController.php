@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\JwtAuth;
-use App\Modelos\Actividades;
-use App\User;
 use App\Modelos\ActividadDetalle;
+use App\Modelos\Actividades;
+use App\Modelos\Mensajes;
+use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -25,7 +26,8 @@ estados de las actividades
         $this->middleware('api.auth', ['except' => [
             'index',
             'show',
-            'getArchivo'
+            'getArchivo',
+           
         ]]);
     }
     /**
@@ -37,11 +39,9 @@ estados de las actividades
     {
         $user = $this->ObtenerIdentidad($request);
 
-        $actividad= User::find($user->sub)->ActividadesCreadas;
-        //dd($actividad);
+        $actividad = Actividades::where('user_creador', $user->sub)->get();
+
         $actividad->load('area','userEncargado');
-
-
 
         return response()->json([
             'code' => '200',
@@ -94,22 +94,19 @@ estados de las actividades
                 ];
             } else {
 
-                
-                if (!(array_key_exists('fk_user_encargado', $params_array))||$params->fk_user_encargado=="") {
-                    
-                   
-                   $actividadDevuelta= $this->agregarActividad($params,'creada',$user->sub);
+                if (!(array_key_exists('fk_user_encargado', $params_array)) || $params->fk_user_encargado == "") {
 
-                   $this->crearDetalleActividad($actividadDevuelta->id_actividad,null);
-                    
-                }else {
-                    
-                    $actividadDevuelta = $this->agregarActividad($params,'enviada',$user->sub);
+                    $actividadDevuelta = $this->agregarActividad($params, 'creada', $user->sub);
 
-                    $this->crearDetalleActividad($actividadDevuelta->id_actividad,$params->fk_user_encargado);
-                   
+                    $this->crearDetalleActividad($actividadDevuelta->id_actividad, null);
+
+                } else {
+
+                    $actividadDevuelta = $this->agregarActividad($params, 'enviada', $user->sub);
+
+                    $this->crearDetalleActividad($actividadDevuelta->id_actividad, $params->fk_user_encargado);
+
                 }
-            
 
                 $data = [
                     'code' => 200,
@@ -199,7 +196,7 @@ estados de las actividades
                 'archivo' => 'required',
                 'descripcion' => 'required',
                 'fk_area_actividad' => 'required',
-                'user_encargado' => 'required',
+               
             ]);
             if ($validate->fails()) {
                 $data['errors'] = $validate->errors();
@@ -208,7 +205,8 @@ estados de las actividades
 
             unset($params_array['id_actividad']);
             unset($params_array['created_at']);
-            unset($params_array['estado_confirmacion_creador']);
+            unset($params_array['estado_actividad']);
+            unset($params_array['user_encargado']);
 
             $actividad = Actividades::where('id_actividad', $id)
                 ->where('user_creador', $user->sub)
@@ -254,8 +252,8 @@ estados de las actividades
 
         //conseguir  el registro
 
-        $detalle = ActividadDetalle::where('id_actividad',$id)
-            ->where('id_usuario',null)
+        $detalle = ActividadDetalle::where('id_actividad', $id)
+            ->where('id_usuario', null)
             ->first();
         $actividad = Actividades::where('id_actividad', $id)
             ->where('fk_user_creador_actividad', $user->sub)
@@ -319,31 +317,146 @@ estados de las actividades
 
     }
 
-    public function getArchivo($filename){
+    public function getArchivo($filename)
+    {
 
-        $isset=\Storage::disk('Actividades')->exists($filename);
-        if($isset){
-        $file= \Storage::disk('Actividades')->get($filename);
-        return new Response($file,200);
+        $isset = \Storage::disk('Actividades')->exists($filename);
+        if ($isset) {
+            $file = \Storage::disk('Actividades')->get($filename);
+            return new Response($file, 200);
 
-        }else{
+        } else {
             $data = array(
-                'code'=> 404,
-                'status'=>'error',
-                'image'=> 'El arhivo no existe no existe',
-               
-             );
+                'code' => 404,
+                'status' => 'error',
+                'image' => 'El arhivo no existe no existe',
+
+            );
 
         }
-      
-        return response()->json($data,$data['code']);
 
+        return response()->json($data, $data['code']);
+
+    }
+
+    public function AddUserActivity(Request $request)
+    {
+        $user = $this->ObtenerIdentidad($request);
+
+        $json = $request->input('json', null);
+        $params_array = json_decode($json, true);
+        $data = array(
+            'code' => 400,
+            'status' => 'error',
+            'message' => 'datos enviados incorrectamente ',
+        );
+
+        if (!empty($params_array)) {
+
+            $validate = \Validator::make($params_array, [
+                'id_Actividad' => 'required',
+                'id_user' => 'required',
+            ]);
+
+            if ($validate->fails()) {
+
+                $data['errors'] = $validate->errors();
+                return response()->json($data, $data['code']);
+            }
+
+            $ActividadUserExist = ActividadDetalle::where('id_Actividad', $params_array['id_Actividad'])->where('id_usuario', $params_array['id_user'])->get();
+
+            if (count($ActividadUserExist) >= 1) {
+
+                $data['message'] = 'La actividad ya fue asignada';
+                return response()->json($data, $data['code']);
+            }
+
+            $this->crearDetalleActividad($params_array['id_Actividad'], $params_array['id_user']);
+
+            $data = array(
+                'code' => 200,
+                'status' => 'success',
+            );
+
+        } else {
+
+            $data = [
+                'code' => 400,
+                'status' => 'error',
+                'message' => 'envia los datos correctamente',
+            ];
+        }
+
+        return response()->json($data, $data['code']);
+
+    }
+
+    public function DeleteUserActivity(Request $request)
+    {
+        $user = $this->ObtenerIdentidad($request);
+
+        $json = $request->input('json', null);
+        $params_array = json_decode($json, true);
+        $data = array(
+            'code' => 400,
+            'status' => 'error',
+            'message' => 'datos enviados incorrectamente ',
+        );
+
+        if (!empty($params_array)) {
+
+            $validate = \Validator::make($params_array, [
+                'id_Actividad' => 'required',
+                'id_user' => 'required',
+            ]);
+
+            if ($validate->fails()) {
+
+                $data['errors'] = $validate->errors();
+                return response()->json($data, $data['code']);
+            }
+
+
+            $this->EliminarDetalleActividad($params_array['id_Actividad'],$params_array['id_user'],$user->sub);
+
+            $data = array(
+                'code' => 200,
+                'status' => 'success',
+            );
+
+
+        } else {
+
+            $data = [
+                'code' => 400,
+                'status' => 'error',
+                'message' => 'envia los datos correctamente',
+            ];
+        }
+
+        return response()->json($data, $data['code']);
 
     }
 
 
+    public function ActividadesDeUsuarioEncargado(Request $request,$id ){
 
-    private function agregarActividad ($params,$estado,$user){
+        //$actividades = User::find($id)->;
+
+    }
+    public function ActividadesDeUnUsuario()
+    {
+        $user = $this->ObtenerIdentidad($request);
+
+        $actividad = User::find($user->sub)->ActividadesCreadas;
+        //dd($actividad);
+        $actividad->load('area', 'userEncargado');
+
+    }
+
+    private function agregarActividad($params, $estado, $user)
+    {
 
         $actividad = new Actividades();
         $actividad->titulo = $params->titulo;
@@ -358,16 +471,89 @@ estados de las actividades
         return $actividad;
     }
 
- public function crearDetalleActividad($id_actividad_devuelta,$fk_user_encargado=null){
+    public function crearDetalleActividad($id_actividad_devuelta, $fk_user_encargado = null)
+    {
 
-    $ActividadDetalle = new ActividadDetalle();
+        $ActividadDetalle = new ActividadDetalle();
 
-    $ActividadDetalle->id_actividad= $id_actividad_devuelta;
-    $ActividadDetalle->id_usuario=$fk_user_encargado;
-    //$params->fk_user_encargado;
-    $ActividadDetalle->save();
+        $ActividadDetalle->id_actividad = $id_actividad_devuelta;
+        $ActividadDetalle->id_usuario = $fk_user_encargado;
+        //$params->fk_user_encargado;
+        $ActividadDetalle->save();
 
- }
+    }
+
+    public function EliminarDetalleActividad($id_actividad, $id_user,$id_creador){
+      //  $msjj= Mensajes::where('fk_actividad',$id_actividad)->get();
+
+        $msj = Mensajes::where('fk_actividad',$id_actividad)->where('fk_user',$id_user)->get();
+        $msj2 = Mensajes::where('fk_actividad',$id_actividad)->where('fk_user',$id_creador)->get();
+        //dd(empty($msj),$msj2);
+       // dd($msj,$msj2);
+        if (!($msj->isEmpty())) {
+            $msj = Mensajes::where('fk_actividad',$id_actividad)->where('fk_user',$id_user)->delete();
+        }
+        
+        if (!($msj2->isEmpty())) {
+            $msj2 = Mensajes::where('fk_actividad',$id_actividad)->where('fk_user',$id_creador)->delete();
+        }
+       
+        //$msj,$msj2,$id_actividad,$id_user,$id_creador
+   
+        
+       
+        
+       $actividadDetalle= ActividadDetalle::where('id_Actividad',$id_actividad)
+                                            ->where('id_usuario', $id_user)->first(); 
+        $actividadDetalle->delete();
+        
+        
+    }
+
+
+    public function getActividadesUserEncargado(Request $request , $id){
+        $user = $this->ObtenerIdentidad($request);
+
+        $json = $request->input('json', null);
+        $params_array = json_decode($json, true);
+
+        if($id != null){
+
+
+            $actividadesDetalle = ActividadDetalle::where('id_usuario', $id)->get();
+
+            $id_actividades=[];
+
+            for ($i = 0; $i < count($actividadesDetalle); $i++) {
+
+                $id_actividades[] = $actividadesDetalle[$i]->id_actividad;
+
+            }
+
+            if ( !empty($id_actividades)) {
+
+                if($id_actividades[0] == null){
+                    unset($id_users[0]); 
+                }
+             }
+
+             $actividades= Actividades::whereIn('id_actividad',$id_actividades)->get();
+
+             $data = array(
+                'code' => 200,
+                'status' => 'success',
+                'actividades'=>$actividades
+            );
+             
+             return response()->json($data, $data['code']);
+
+        }
+
+
+    }
+
+
+
 
 
     private function ObtenerIdentidad($request)
@@ -380,4 +566,8 @@ estados de las actividades
         return $user;
 
     }
+
+
+
+  
 }

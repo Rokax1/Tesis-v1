@@ -36,6 +36,7 @@ class Actividades  extends Model
         return $this->belongsTo('App\Modelos\AreaActividad','fk_area_actividad');
     }
 
+    
    
     
 
